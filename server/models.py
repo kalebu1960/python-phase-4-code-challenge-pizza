@@ -2,6 +2,7 @@ from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import MetaData
 from sqlalchemy.orm import validates
 from sqlalchemy.ext.associationproxy import association_proxy
+from sqlalchemy_serializer import SerializerMixin
 
 metadata = MetaData(
     naming_convention={
@@ -12,7 +13,7 @@ metadata = MetaData(
 db = SQLAlchemy(metadata=metadata)
 
 
-class Restaurant(db.Model):
+class Restaurant(db.Model, SerializerMixin):
     __tablename__ = "restaurants"
 
     id = db.Column(db.Integer, primary_key=True)
@@ -24,6 +25,9 @@ class Restaurant(db.Model):
     
     # add association proxy to get pizzas through restaurant_pizzas
     pizzas = association_proxy('restaurant_pizzas', 'pizza')
+
+    # Keep SerializerMixin but override to_dict
+    serialize_rules = ('-restaurant_pizzas.restaurant', '-pizzas.restaurant_pizzas')
 
     def to_dict(self):
         """Simple to_dict method that only includes basic fields"""
@@ -43,7 +47,7 @@ class Restaurant(db.Model):
         return f"<Restaurant {self.name}>"
 
 
-class Pizza(db.Model):
+class Pizza(db.Model, SerializerMixin):
     __tablename__ = "pizzas"
 
     id = db.Column(db.Integer, primary_key=True)
@@ -55,6 +59,9 @@ class Pizza(db.Model):
     
     # add association proxy to get restaurants through restaurant_pizzas
     restaurants = association_proxy('restaurant_pizzas', 'restaurant')
+
+    # Keep SerializerMixin but override to_dict
+    serialize_rules = ('-restaurant_pizzas.pizza', '-restaurants.restaurant_pizzas')
 
     def to_dict(self):
         """Simple to_dict method that only includes basic fields"""
@@ -68,13 +75,16 @@ class Pizza(db.Model):
         return f"<Pizza {self.name}, {self.ingredients}>"
 
 
-class RestaurantPizza(db.Model):
+class RestaurantPizza(db.Model, SerializerMixin):
     __tablename__ = "restaurant_pizzas"
 
     id = db.Column(db.Integer, primary_key=True)
     price = db.Column(db.Integer, nullable=False)
     pizza_id = db.Column(db.Integer, db.ForeignKey('pizzas.id'), nullable=False)
     restaurant_id = db.Column(db.Integer, db.ForeignKey('restaurants.id'), nullable=False)
+
+    # Keep SerializerMixin
+    serialize_rules = ('-restaurant.restaurant_pizzas', '-pizza.restaurant_pizzas')
 
     # add validation
     @validates('price')
